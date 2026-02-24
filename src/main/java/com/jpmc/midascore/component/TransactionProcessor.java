@@ -2,6 +2,7 @@ package com.jpmc.midascore.component;
 
 import com.jpmc.midascore.entity.TransactionRecord;
 import com.jpmc.midascore.entity.UserRecord;
+import com.jpmc.midascore.foundation.Incentive;
 import com.jpmc.midascore.foundation.Transaction;
 import com.jpmc.midascore.repository.TransactionRepository;
 import com.jpmc.midascore.repository.UserRepository;
@@ -16,10 +17,12 @@ public class TransactionProcessor {
 
     private final UserRepository userRepository;
     private final TransactionRepository transactionRepository;
+    private final IncentiveApiClient incentiveApiClient;
 
-    public TransactionProcessor(UserRepository userRepository, TransactionRepository transactionRepository) {
+    public TransactionProcessor(UserRepository userRepository, TransactionRepository transactionRepository, IncentiveApiClient incentiveApiClient) {
         this.userRepository = userRepository;
         this.transactionRepository = transactionRepository;
+        this.incentiveApiClient = incentiveApiClient;
     }
 
     @Transactional
@@ -45,19 +48,23 @@ public class TransactionProcessor {
             return;
         }
 
+        // Get incentive from external API
+        Incentive incentive = incentiveApiClient.getIncentive(transaction);
+        float incentiveAmount = incentive.getAmount();
+
         // Process the transaction
         sender.setBalance(sender.getBalance() - transaction.getAmount());
-        recipient.setBalance(recipient.getBalance() + transaction.getAmount());
+        recipient.setBalance(recipient.getBalance() + transaction.getAmount() + incentiveAmount);
 
         // Save updated balances
         userRepository.save(sender);
         userRepository.save(recipient);
 
-        // Record the transaction
-        TransactionRecord record = new TransactionRecord(sender, recipient, transaction.getAmount());
+        // Record the transaction with incentive
+        TransactionRecord record = new TransactionRecord(sender, recipient, transaction.getAmount(), incentiveAmount);
         transactionRepository.save(record);
 
-        logger.info("Transaction processed successfully: {} -> {} amount: {}",
-                sender.getName(), recipient.getName(), transaction.getAmount());
+        logger.info("Transaction processed successfully: {} -> {} amount: {} incentive: {}",
+                sender.getName(), recipient.getName(), transaction.getAmount(), incentiveAmount);
     }
 }

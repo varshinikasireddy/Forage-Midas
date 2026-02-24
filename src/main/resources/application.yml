@@ -3,3 +3,7 @@ general:
 
 server:
   port: 33400
+
+spring:
+  profiles:
+    active: dev
