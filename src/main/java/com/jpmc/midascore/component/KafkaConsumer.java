@@ -13,11 +13,19 @@ import java.util.List;
 public class KafkaConsumer {
     private static final Logger logger = LoggerFactory.getLogger(KafkaConsumer.class);
     private final List<Transaction> receivedTransactions = new ArrayList<>();
+    private final TransactionProcessor transactionProcessor;
+
+    public KafkaConsumer(TransactionProcessor transactionProcessor) {
+        this.transactionProcessor = transactionProcessor;
+    }
 
     @KafkaListener(topics = "${general.kafka-topic}", groupId = "midas-core-group-v2")
     public void listen(Transaction transaction) {
         logger.info("Received transaction: {}", transaction);
         receivedTransactions.add(transaction);
+        
+        // Process the transaction
+        transactionProcessor.processTransaction(transaction);
         // Set a breakpoint here to inspect the transaction
     }
 
